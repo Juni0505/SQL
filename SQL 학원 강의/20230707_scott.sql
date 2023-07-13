@@ -174,4 +174,85 @@ SELECT ENAME, emp.DEPTNO, DNAME, LOC -- 해당하는 값이 고유 중복값이�
 FROM emp 
 JOIN dept ON emp.DEPTNO = dept.DEPTNO ;
 
+-- join 대신 쉼표사용
+SELECT ename, dept.DEPTNO, dname, loc FROM emp, dept WHERE emp.DEPTNO = dept.DEPTNO ;
 
+-- 부서위치가 DALLAS인 사원명, 부서번호, 부서명, 위치를 조회
+SELECT ename, dept.DEPTNO, dname, loc
+FROM emp, DEPT
+WHERE emp.deptno = dept.DEPTNO
+ AND loc = 'DALLAS';
+
+SELECT empno, loc FROM emp cross JOIN DEPT;
+
+SELECT * FROM emp;
+SELECT * FROM SALGRADE;
+-- 사원의 이름, 사번, sal, grade 를 조회
+SELECT e.ename, e.empno, e.sal, s.grade FROM EMP e JOIN SALGRADE s ON e.SAL BETWEEN s.LOSAL AND s.HISAL
+ORDER BY s.grade, e.SAL;
+
+SELECT empno, ename, mgr FROM emp;
+SELECT e.empno, e.ename, e.mgr, m.ename marname FROM emp e JOIN emp m ON e.mgr = m.EMPNO;
+
+--같은 이름 컬럼명이 나오지 않도록 별칭 사용
+SELECT e.empno boss, e.ename, m.empno emp, m.ename emps FROM emp e JOIN emp m ON e.empno = m.mgr;
+
+SELECT ename FROM emp WHERE empno=7566;
+
+-- 자료형
+CREATE TABLE ta(c1 char(5), c2 varchar2(5));
+INSERT INTO ta VALUES('12','12');
+INSERT INTO ta values('12345', '12345');
+--SQL Error [12899] [72000]: ORA-12899: "SCOTT"."TA"."C1" 열에 대한 값이 너무 큼(실제: 6, 최대값: 5)
+--INSERT INTO ta values('123456','123456');
+COMMIT;
+SELECT LENGTH(c1), LENGTH(c2) FROM ta;
+
+-- ERD( entity realationship diagram)
+-- UML - classDiagram
+
+SELECT rownum, e.* FROM emp e WHERE deptno IN (20, 30);
+-- 오류
+SELECT rownum, e.* FROM emp e WHERE deptno IN (20, 30)
+ORDER BY ENAME ASC;
+-- 해결 방법
+SELECT rownum, e.* FROM (SELECT * FROM emp ORDER BY ename asc) e 
+WHERE deptno IN (20, 30);
+
+SELECT rownum, e.* FROM (SELECT * FROM emp WHERE deptno IN (20, 30) ORDER BY ename asc) e;
+
+SELECT * FROM emp ORDER BY ename ASC;
+
+-- 1page 1-3
+SELECT rownum, e.* FROM (SELECT * FROM emp WHERE deptno IN (20, 30) ORDER BY ename asc) e
+WHERE rownum BETWEEN 1 AND 3;
+
+-- 2page 4-6
+SELECT rownum rnum, e.* FROM (SELECT * FROM emp WHERE deptno IN (20, 30) ORDER BY ename asc) e
+WHERE rnum BETWEEN 4 AND 6;
+-- rnum은 select -6 수행순서로 where 절
+-- 해결 - rownum을 제대로 사용하기위해서는 2개의 중첩 subquery(inline-view)을 필요함
+-- 3page 7-9
+SELECT * FROM (SELECT rownum rnum, e.* FROM 
+	(SELECT * FROM emp WHERE deptno IN (20, 30) ORDER BY ename ASC) e)
+	WHERE rnum BETWEEN 7 AND 9;
+
+WITH abc AS (SELECT rownum rnum, e.* FROM (SELECT * FROM emp WHERE deptno IN (20,30)
+ORDER BY ename ASC) e)
+SELECT * FROM abc WHERE rnum BETWEEN 7 AND 9;
+-- abc가 마치 새로운 테이블처럼 사용가능함.
+--			AND sal > (SELECT avg(sal) FROM abc);
+
+CREATE VIEW VIEW_abc AS 
+(SELECT rownum rnum, e.* FROM (SELECT * FROM emp WHERE deptno IN (20,30)
+ORDER BY ename ASC) e);
+SELECT * FROM VIEW_abc;
+
+-- SALESMAN 과 'MANAGER' 를 조회해주세요.
+SELECT * FROM EMP WHERE job = 'SALESMAN' OR job = 'MANAGR';
+
+SELECT * FROM emp WHERE job IN ('SALESMAN', 'MANAGER');
+-- union 사용 
+SELECT *FROM EMP WHERE job = 'SALSEMAN'
+UNION 
+SELECT * FROM emp WHERE job = 'MANAGER';
