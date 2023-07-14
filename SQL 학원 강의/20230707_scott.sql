@@ -253,6 +253,81 @@ SELECT * FROM EMP WHERE job = 'SALESMAN' OR job = 'MANAGR';
 
 SELECT * FROM emp WHERE job IN ('SALESMAN', 'MANAGER');
 -- union 사용 
-SELECT *FROM EMP WHERE job = 'SALSEMAN'
+SELECT * FROM EMP WHERE job = 'SALSEMAN'
 UNION 
 SELECT * FROM emp WHERE job = 'MANAGER';
+-- 
+SELECT empno, ename, job FROM EMP WHERE job = 'SALSEMAN'
+UNION 
+SELECT mgr, ename, job FROM emp WHERE job = 'MANAGER';
+
+-- 급여가 1000미만인 직원, 2000 미만인 직원 조회 - 중복 결과 포함
+SELECT empno, ename, sal FROM emp WHERE sal < 1000
+UNION
+SELECT empno, ename, sal FROM emp WHERE sal < 2000;
+
+-- 급여가 1000 초과인 직원, 2000 미만인 직원 조회 -- intersect 교집합
+SELECT empno, ename, sal FROM emp WHERE sal > 1000
+INTERSECT
+SELECT empno, ename, sal FROM emp WHERE sal < 2000;
+
+-- 2000 미만인 직원을 제외하고 조회 - minus
+SELECT empno, ename, sal FROM emp 
+minus
+SELECT empno, ename, sal FROM emp WHERE sal < 2000;
+
+-- not exists
+SELECT empno, ename, sal FROM emp e WHERE NOT EXISTS (SELECT e2.sal FROM emp e2 WHERE e.sal < 2000);
+);
+
+-- DDL
+-- COMMENT
+COMMENT ON COLUMN emp.mgr IS '관리자사번';
+
+--DESC user_constraints;
+SELECT * FROM user_constraints;
+SELECT * FROM user_tables;
+SELECT * FROM USER_VIEWS;
+
+-- 20230713
+SELECT * FROM emp;
+-- CREATE에서 대상으로 테이블을 지정할때 새로운 카피목록을 생성 = java 얕은복사
+CREATE TABLE emp_copy1 AS SELECT * FROM emp;
+SELECT * FROM emp_copy1;
+-- VIEW 는 복사를 하면서 해당 값도 영향을 끼쳐 실시간으로 반영됨
+CREATE VIEW view_emp1 AS SELECT * FROM emp;
+SELECT * FROM VIEW_emp1;
+INSERT INTO emp values(8000, 'EJKIM', 'KH', 7788, sysdate, 3000, 700, 40);
+COMMIT;
+-- 해당값을 넣어도 본 원래 emp엔 영향을 끼치진 않음. 카피본에만 적용됨
+INSERT INTO emp_copy1 values(8001, 'EJ1', 'KH', 7788, sysdate, 3000, 700, 40);
+COMMIT;
+INSERT INTO view_emp1 VALUES(8002,'EJ2','KH', 7788,sysdate,3000,700,40);
+COMMIT;
+CREATE TABLE emp_copy20 AS SELECT empno 사원명, job, HIREDATE, sal 
+FROM emp WHERE deptno = 20;
+
+SELECT * FROM emp_copy20;
+SELECT * FROM USER_constraints;
+
+SELECT * FROM user_sequences;
+--
+SELECT * FROM user_indexs;
+SELECT * FROM user_ind_columns;
+SELECT * FROM user_constraints;
+SELECT * FROM user_cons_columns;
+
+-- a. 함수기반 index
+CREATE INDEX idx_emp_sal ON emp(sal);
+CREATE INDEX idx_emp_sal ON emp(sal*12);
+-- where 절에 sal*12 > 5000 처럼 조건문에 사용이 빈번할때 index를 걸어줌
+CREATE INDEX idx_emp_sal_comm ON emp(sal,comm);
+-- b. where 절에 sal > 5000 and comm > 200 처럼 조건문에 사용이 빈번할때 index를 걸어줌
+SELECT * FROM emp WHERE sal>3000 AND comm IS NOT NULL;
+-- bitmap 기반 index - 도메인의 종류가 적을때 동일한 데이터가 많은 경우 - gender 남여
+CREATE bitmap INDEX idx_emp_deptno ON emp(deptno);
+CREATE bitmap INDEX idx_emp_deptno_job ON emp(job, deptno);
+-- I. unique
+	-- insert 오류체크빠름.
+-- II. non-unique
+

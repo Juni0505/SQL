@@ -367,5 +367,258 @@ LEFT JOIN DEPARTMENT ON (DEPT_CODE = dept_id)
 LEFT JOIN job using(job_code);
 
 
+-- 20230713 목요일 실습 DML
+INSERT INTO EMPLOYEE
+values(1, '홍길동', '820114-1010101', 'hong_kd@kh.or.kr', '01099998888','D5','J2','S4',3800000,
+NULL, '200',sysdate,NULL,default);
+SELECT * FROM EMPLOYEE;
+UPDATE EMPLOYEE SET emp_id = 290 WHERE EMP_NAME = '홍길동';
+DELETE employee WHERE emp_name = '홍길동';
 
+INSERT INTO employee (emp_id,emp_name,emp_no,email,phone,DEPT_CODE,JOB_CODE,SAL_LEVEL,SALARY,
+BONUS,MANAGER_ID,HIRE_DATE,ENT_DATE,ENT_YN)
+values(900,'장채현','901123-1080503','jang_ch@kh.or.kr','01055569512','D1','J8','S3',43000000,0.2
+, '200',sysdate,null,default);
+-- 또는
+INSERT INTO EMPLOYEE
+values(900,'장채현','901123-1080503','jang_ch@kh.or.kr','01055569512','D1','J8','S3',43000000,0.2
+, '200',sysdate,null,default);
 
+CREATE TABLE emp_01(
+	emp_id NUMBER,
+	emp_name varchar2(30),
+	dept_title varchar2(20)
+	);
+INSERT INTO emp_01(
+	SELECT emp_id,
+	emp_name,
+	dept_title
+	FROM EMPLOYEE
+	LEFT JOIN DEPARTMENT ON (dept_code = dept_id)
+	);
+-- insert 시 values 대신 서브쿼리 이용 가능
+SELECT * FROM emp_01;
+CREATE TABLE emp_dept_d1 AS SELECT emp_id, emp_name, dept_code, hire_date
+FROM EMPLOYEE e WHERE 1 = 0;
+CREATE TABLE emp_manager AS SELECT emp_id, emp_name, manager_id FROM employee WHERE 1=0;
+SELECT * FROM emp_dept_d1;
+SELECT * FROM emp_manager;
+--EMP_DEPT_D1테이블에 EMPLOYEE테이블의 부서코드가 D1인 직원의
+--사번, 이름, 소속부서, 입사일을 삽입하고
+--EMP_MANAGER테이블에 EMPLOYEE테이블의 부서코드가 D1인 직원의
+--사번, 이름, 관리자 사번을 조회하여 삽입
+INSERT ALL
+INTO emp_dept_d1 values(emp_id, emp_name, dept_code, hire_date)
+INTO emp_manager values(emp_id, emp_name, manager_id)
+SELECT emp_id, emp_name, dept_code, hire_date, manager_id
+FROM EMPLOYEE e 
+WHERE dept_code = 'D1';
+-- EMPLOYEE테이블의 구조를 복사하여 사번, 이름, 입사일, 급여를 기록할 수 있는
+-- 테이블 EMP_OLD와 EMP_NEW 생성
+CREATE TABLE emp_old AS SELECT emp_id, emp_name, hire_date, salary
+FROM EMPLOYEE e WHERE 1 = 0;
+CREATE TABLE emp_new AS SELECT emp_id, emp_name, hire_date, salary
+FROM EMPLOYEE e WHERE 1 = 0;
+SELECT * FROM emp_old;
+SELECT * FROM emp_new;
+INSERT ALL
+WHEN hire_date < '2000/01/01' THEN
+	INTO emp_old values(emp_id,emp_name,hire_date,salary)
+WHEN hire_date > '2000/01/01' THEN
+	INTO emp_new values(emp_id,emp_name,hire_date,salary)
+SELECT emp_id,emp_name,hire_date,salary
+FROM EMPLOYEE;
+
+CREATE TABLE dept_copy AS SELECT*FROM DEPARTMENT;
+SELECT * FROM dept_copy;
+UPDATE dept_copy SET dept_title = '전략기획팀'
+WHERE dept_id = 'D9';
+-- 방명수 사원의 급여와 보너스율을 유재식 사원과 동일하게 변경
+CREATE TABLE emp_salary AS SELECT emp_id,emp_name,dept_code,salary,bonus
+FROM employee;
+SELECT * FROM emp_salary WHERE emp_name in('유재식','방명수');
+UPDATE emp_salary 
+SET salary = (SELECT salary FROM EMP_SALARY WHERE emp_name='유재식'),
+bonus = (SELECT bonus FROM EMP_SALARY WHERE emp_name = '유재식')
+WHERE emp_name = '방명수';
+-- 각각 쿼리문 작성한 것을 다중 행 다중 열 서브쿼리로 변경
+UPDATE emp_salary
+SET (salary, bonus) = (SELECT salary, bonus FROM EMP_SALARY WHERE emp_name = '유재식')
+WHERE emp_name = '방명수';
+SELECT * FROM emp_salary WHERE emp_name in('유재식','방명수');
+-- emp_salary 테이블에서 아시아 지역에 근무하는 ㅈ기원의 보너스 포인트 0.3으로 변경
+UPDATE emp_salary SET bonus = 0.3 
+WHERE emp_id IN (SELECT emp_id FROM EMPLOYEE JOIN DEPARTMENT ON(DEPT_id = DEPT_code)
+JOIN LOCATION on(location_id = local_code)
+WHERE LOCAL_name LIKE 'ASIA%');
+SELECT * FROM EMP_SALARY;
+
+DELETE FROM EMPLOYEE e WHERE e.EMP_NAME  = '장채현';
+-- where 조건을 설정하지 않으면 모든 행 삭제
+DELETE FROM DEPARTMENT d WHERE DEPT_ID ='D1';
+SELECT * FROM DEPARTMENT d;
+-- 삭제 시 foreign key 제약조건으로 컬럼 삭제가 불가능한 경우 제약조건을 비활성화 할 수 있음
+DELETE FROM DEPARTMENT WHERE DEPT_ID = 'D1';
+ALTER TABLE EMPLOYEE disable CONSTRAINT emp_deptcode_fk CASCADE;
+DELETE FROM DEPARTMENT WHERE DEPT_ID = 'D1';
+
+-- 비활성화된 제약 조건을 다시 활성화 시킬 수 있음
+ALTER TABLE EMPLOYEE enable CONSTRAINT emp_deptcode_fk;
+TRUNCATE TABLE emp_salary;
+SELECT * FROM EMP_SALARY;
+-- 모든 컬럼이 삭제되긴 하지만 테이블의 구조는 남아있음
+ROLLBACK;
+-- rollback 후에도 컬럼이 복구되지 않음
+
+-- DDL ALTER,DROP 
+SELECT * FROM DEPT_COPY;
+ALTER TABLE dept_copy
+ADD(cname varchar2(20));
+ALTER TABLE DEPT_COPY
+ADD(lname varchar2(40) default'한국');
+
+ALTER TABLE dept_copy
+ADD CONSTRAINT dcopy_did_pk PRIMARY KEY(dept_id);
+ADD CONSTRAINT dcopy_dtitle_unq UNIQUE(dept_title);
+MODIFY lname CONSTRAINT dcopy_lname_nn NOT NULL;
+SELECT * FROM DEPT_COPY;
+SELECT uc.constraint_name,
+	uc.constraint_type,
+	uc.table_name,
+	ucc.column_name,
+	uc.search_condition
+FROM user_constraints uc
+JOIN user_cons_columns ucc ON (uc.CONSTRAINT_NAME=ucc.CONSTRAINT_NAME)
+WHERE uc.TABLE_NAME = 'dept_copy';
+SELECT * FROM USER_CONSTRAINTS;
+
+ALTER TABLE DEPT_COPY 
+MODIFY dept_id char(3)
+MODIFY dept_title varchar(30)
+MODIFY location_id varchar(2)
+MODIFY cname char(20)
+MODIFY lname default'미국';
+
+ALTER TABLE DEPT_COPY 
+DROP COLUMN dept_id;
+
+CREATE TABLE tb1(
+	pk NUMBER PRIMARY KEY,
+	fk NUMBER REFERENCES tb1,
+	col1 NUMBER,
+	check(pk > 0 AND col1 > 0)
+);
+SELECT * FROM tb1;
+ALTER TABLE tb1 DROP COLUMN pk;
+-- 컬럼 삭제 시 참조하고 있는 컬럼이 있다면 컬럼 삭제 불가능
+ALTER TABLE tb1 DROP COLUMN pk CASCADE CONSTRAINT;
+
+ALTER TABLE dept_copy
+DROP CONSTRAINT dcopy_did_pk
+DROP CONSTRAINT dcopy_dtitle_unq
+MODIFY lname NULL;
+
+ALTER TABLE DEPT_COPY RENAME COLUMN dept_title TO dept_name;
+SELECT * FROM DEPT_COPY;
+
+ALTER TABLE USER_FOREIGNKEY2
+RENAME constraint sys_c007211 TO uf_up_nn;
+
+ALTER TABLE USER_FOREIGNKEY2
+RENAME CONSTRAINT sys_c007212 TO uf_un_pk;
+
+ALTER TABLE USER_FOREIGNKEY2
+RENAME CONSTRAINT sys_c007213 TO uf_ui_uq;
+
+ALTER TABLE USER_FOREIGNKEY2
+RENAME CONSTRAINT sys_c007214 TO uf_gc_fk;
+
+SELECT uc.constraint_name 이름,
+uc.constraint_type 유형,
+ucc.COLUMN_name 컬럼명,
+uc.r_constraint_name 참조,
+uc.delete_rule 삭제규칙
+FROM USER_CONSTRAINTS uc
+JOIN USER_CONS_COLUMNS ucc ON (uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME)
+WHERE uc.TABLE_NAME = 'user_foreignkey2';
+
+ALTER TABLE DEPT_COPY RENAME TO dept_test;
+RENAME dept_copy TO dept_test;
+
+DROP TABLE dept_test CASCADE CONSTRAINT;
+
+-- view
+
+CREATE OR REPLACE VIEW v_employee
+AS SELECT emp_id, emp_name, dept_title, NATIONAL_name
+FROM EMPLOYEE e 
+LEFT JOIN DEPARTMENT d ON (dept_id = DEPT_CODE)
+LEFT JOIN location ON (location_id = LOCAL_code)
+LEFT JOIN NATIONAL using(national_code);
+SELECT * FROM v_employee;
+SELECT * FROM EMPLOYEE e ;
+SELECT * FROM JOB j ;
+CREATE OR REPLACE VIEW v_emp_job
+AS SELECT e.emp_id, e.emp_name, job.job_name,
+DECODE(SUBSTR(emp_no,8,1),1, '남',2,'여') AS 성별 ,
+EXTRACT(YEAR FROM sysdate) - extract(YEAR FROM hire_date) AS 근무년수
+FROM EMPLOYEE e
+JOIN job ON e.JOB_CODE = job.JOB_CODE ;
+SELECT * FROM v_emp_job;
+
+CREATE OR REPLACE VIEW v_job
+AS SELECT j1.job_code, j2.job_name FROM JOB j1 JOIN job j2 ON j1.JOB_CODE = j2.JOB_CODE ;
+SELECT * FROM v_job;
+INSERT INTO v_job values('J8','인턴');
+SELECT * FROM v_job;
+-- 생성된 뷰를 가지고 DML구문 (insert,update,delete)사용가능
+-- 생성된 뷰에 요청한 DML구문이 베이스 테이블도 변경함
+
+--1. 뷰 정의에 포함되지 않은 컬럼을 조작하는 경우
+CREATE OR REPLACE VIEW v_job2 AS SELECT job_code FROM job;
+SELECT * FROM v_job2;
+-- SQL Error [913] [42000]: ORA-00913: 값의 수가 너무 많습니다
+INSERT INTO v_job2 values('J8','인턴');
+
+--2. 뷰에 포함되지 않은 컬럼 중에 베이스가 되는 컬럼이
+--NOT NULL 제약조건이 지정된 경우
+CREATE OR REPLACE VIEW v_job3 AS SELECT job_name FROM job;
+SELECT * FROM v_job3;
+-- SQL Error [1400] [23000]: ORA-01400: NULL을 ("KH"."JOB"."JOB_CODE") 안에 삽입할 수 없습니다
+INSERT INTO v_job3 values('인턴');
+
+--3. 산술 표현식으로 정의된 경우
+CREATE OR REPLACE VIEW emp_sal AS SELECT emp_id, emp_name, salary,
+(SALARY + (SALARY*NVL(BONUS, 0)))*12 연봉
+FROM EMPLOYEE;
+SELECT * FROM emp_sal;
+-- SQL Error [1733] [42000]: ORA-01733: 가상 열은 사용할 수 없습니다
+INSERT INTO emp_sal values(800, '정진훈', 3000000,4000000);
+
+--4. 그룹함수나 GROUP BY절을 포함한 경우
+CREATE OR REPLACE VIEW v_groupdept AS SELECT dept_code, sum(salary) 합계, avg(salary) 평균
+FROM employee GROUP BY dept_code;
+SELECT * FROM v_groupdept;
+-- SQL Error [1733] [42000]: ORA-01733: 가상 열은 사용할 수 없습니다
+INSERT INTO V_GROUPDEPT VALUES('D10',6000000,4000000);
+-- SQL Error [1732] [42000]: ORA-01732: 뷰에 대한 데이터 조작이 부적합합니다
+DELETE FROM V_GROUPDEPT WHERE dept_code = 'D1';
+
+--5. DISTINCT를 포함한 경우
+CREATE OR REPLACE VIEW v_dt_emp AS SELECT DISTINCT job_code FROM EMPLOYEE;
+SELECT * FROM v_dt_emp;
+-- SQL Error [1732] [42000]: ORA-01732: 뷰에 대한 데이터 조작이 부적합합니다
+INSERT INTO v_dt_emp values('J9');
+-- SQL Error [1732] [42000]: ORA-01732: 뷰에 대한 데이터 조작이 부적합합니다
+DELETE FROM v_dt_emp WHERE job_code='J1';
+
+--6. JOIN을 이용해 여러 테이블을 연결한 경우
+CREATE OR REPLACE VIEW v_joinemp AS SELECT emp_id, emp_name, dept_title
+FROM EMPLOYEE JOIN DEPARTMENT ON (dept_code = DEPT_ID );
+SELECT * FROM V_JOINEMP;
+-- SQL Error [1776] [42000]: ORA-01776: 조인 뷰에 의하여 하나 이상의 기본 테이블을 수정할 수 없습니다.
+INSERT INTO v_joinemp values(888,'조세오','인사관리부');
+
+SELECT * FROM user_views;
+
+CREATE synonym emp FOR employee;

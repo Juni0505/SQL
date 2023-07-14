@@ -4,3 +4,6 @@ ALTER SESSION SET "_ORACLE_SCRIPT"=TRUE;
 CREATE USER kh IDENTIFIED BY kh;
 -- 권한부여
 GRANT CONNECT, resource, dba TO kh;
+
+
+CREATE public synonym dept_public FOR kh.department
