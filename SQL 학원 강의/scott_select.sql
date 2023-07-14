@@ -37,8 +37,7 @@ SELECT * FROM emp WHERE mod(empno, 2) = 1;
 SELECT ename, TO_CHAR(HIREDATE, 'yyyy'), TO_CHAR(HIREDATE, 'mm')  FROM emp;
 
 -- 13. EMP테이블에서 9월에 입사한 직원의 정보 조회
-SELECT * FROM emp WHERE EXTRACT(MONTH FROM hiredate) = 9; 
-
+SELECT * FROM emp WHERE EXTRACT(MONTH FROM hiredate) = 09;
 -- 14. EMP테이블에서 81년도에 입사한 직원 조회
 SELECT * FROM emp WHERE EXTRACT(YEAR FROM hiredate) = 1981;
 
@@ -52,10 +51,10 @@ SELECT * FROM emp WHERE ENAME LIKE '__R%';
 -- 16-2. SUBSTR() 함수 사용
 SELECT * FROM emp WHERE SUBSTR(ename, 3, 1) = 'R';
 
--- 17. EMP테이블에서 사번, 사원명, 입사일, 입사일로부터 40년 되는 날짜 조회
-SELECT empno, ename, hiredate, Date_add(HIREDATE, INTERVAL 40 year) FROM emp; 
+-- 17. EMP테이블에서 사번, 사원명, 입사일, 입사일로부터 40년 되는 날짜 조회 // 추후 공부
+SELECT empno, ename, hiredate, hiredate + INTERVAL '40' YEAR FROM emp; 
 
 -- 18. EMP테이블에서 입사일로부터 38년 이상 근무한 직원의 정보 조회
---SELECT * FROM
+SELECT * FROM emp WHERE MONTHS_BETWEEN(SYSDATE, HIREDATE) >= 456;
 -- 19. 오늘 날짜에서 년도만 추출
 SELECT EXTRACT(YEAR FROM sysdate) FROM dual; 
