@@ -331,3 +331,51 @@ CREATE bitmap INDEX idx_emp_deptno_job ON emp(job, deptno);
 	-- insert 오류체크빠름.
 -- II. non-unique
 
+-- SQL Error [937] [42000]: ORA-00937: 단일 그룹의 그룹 함수가 아닙니다
+SELECT deptno, empno, sal, sum(sal) sumsal FROM emp;
+-- window - over (partition by ..) : 기존 group by 단점 개선
+SELECT deptno, empno, ename, sal, sum(sal) over(PARTITION BY DEPTNO) sumsal FROM emp;
+-- window - over(order by ..) : 기존 rownum 대비 간결 - 동일순위가 있을때 다음 순위값이 +1 dense_rank()
+SELECT deptno, empno, ename, sal,
+rank() over(ORDER BY sal ) ranksal,
+DENSE_RANK() over(ORDER BY sal asc) dranksal,
+ROW_NUMBER() over(ORDER BY sal asc) rnsal,
+rank() OVER (PARTITION BY DEPTNO ORDER BY sal asc) dept_sal_rank
+FROM emp ORDER BY DEPTNO;
+SELECT RANK(2450) WITHIN group(ORDER BY sal ASC) clarksal FROM emp;
+-- rownum
+SELECT deptno, empno, ename, sal, rn ranksal 
+FROM (SELECT rownum rn, t1.* FROM(SELECT deptno, empno, ename, sal FROM emp ORDER BY sal asc) t1);
+-- 부서코드가 '30'인 직원의 이름, 급여, 급여에 대한 누적분산을 조회
+SELECT ename, sal, CUME_DIST() over(ORDER BY SAL) sal_cume_dist FROM emp WHERE DEPTNO = '30';
+
+-- 부서별 직원의 이름, 급여, 급여에 대한 누적분산을 조회
+SELECT ename, deptno, sal ,
+	TRUNC(CUME_DIST() over(PARTITION BY deptno ORDER BY sal), 2) sal_cume_dist,
+	TRUNC(RATIO_TO_REPORT(SAL) over(PARTITION BY DEPTNO),2) sal_ratio 
+FROM emp;
+
+SELECT deptno, ename, sal,
+FIRST_VALUE(ename) over(PARTITION BY deptno ORDER BY sal desc) AS dept_rich
+FROM emp;
+
+SELECT deptno, ename, sal, 
+LAST_VALUE(ename) over(PARTITION BY deptno ORDER BY sal DESC) AS dept_poor,
+-- 마지막 원하는 값이 안나옴
+LAST_VALUE(ENAME) over(PARTITION BY deptno ORDER BY sal DESC 
+ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) AS dept_poorfrom
+-- WINDOW 절
+-- 생략시 현재 행이 작성되는 내용(값)까지만 알 수 있음. 다음 행에 나올 값은 알지 못함.
+-- UNBOUNDED PRECEDING : 윈도우의 첫행
+-- UNBOUNDED FOLLOWING : 윈도우의 마지막행
+-- 1 PRECEDING : 현재행의 이전행
+-- 1 FOLLOWING : 현재행의 다음행
+FROM emp;
+
+SELECT empno, ENAME, sal, NTILE(4) over(ORDER BY sal) FROM emp; 
+
+SELECT * FROM dept;
+INSERT INTO dept values(10,'accounting','new york');
+INSERT INTO dept values('&deptno값을 넣어주세요','&부서명','&지역');
+
+SELECT '&aaa' FROM dual;

@@ -622,3 +622,216 @@ INSERT INTO v_joinemp values(888,'조세오','인사관리부');
 SELECT * FROM user_views;
 
 CREATE synonym emp FOR employee;
+
+-- 20230717
+-- group by - 꼭 지켜져야하는 룰 : group by 컬럼명, 컬럼명 만 select 로 선택할 수 있음. 또는 그룹함수 사용가능.
+SELECT JOB_CODE , sum(SALARY) sumsal, count(*) cnt FROM EMPLOYEE GROUP BY job_code ORDER BY 1;
+
+-- 집계(전체)
+SELECT JOB_CODE , sum(SALARY) FROM EMPLOYEE GROUP BY ROLLUP(JOB_CODE) ORDER BY 1;
+SELECT JOB_CODE , sum(SALARY) FROM EMPLOYEE GROUP BY CUBE(JOB_CODE) ORDER BY 1;
+
+SELECT dept_code, job_code, sum(salary) FROM EMPLOYEE  GROUP BY ROLLUP(DEPT_CODE,JOB_CODE)
+ORDER BY 1;
+
+SELECT dept_code, job_code, sum(salary) FROM EMPLOYEE  GROUP BY CUBE(DEPT_CODE,JOB_CODE)
+ORDER BY 1;
+SELECT dept_code, job_code, sum(salary) FROM EMPLOYEE GROUP BY ROLLUP(dept_code, job_code)
+UNION
+SELECT '', job_code, sum(SALARY) FROM EMPLOYEE GROUP BY ROLLUP(JOB_CODE) ORDER BY 1;
+SELECT dept_code, job_code sum(salary) FROM EMPLOYEE GROUP BY CUBE(dept_code,job_code) ORDER BY 1;
+SELECT dept_code, job_code , sum(salary),
+	CASE
+		-- grouping(c1) : c1의 집계부분인지 0,1로 확인됨.
+		-- 0 : 해당 컬럼으로 grouping 안된상태. 1 : 해당하는 컬럼으로 grouping 된 상태.
+		WHEN grouping(dept_code) = 0 AND grouping(job_code) = 1 THEN '부서별 합계'
+		WHEN grouping(dept_code) = 1 AND grouping(job_code) = 0 THEN '직급별 합계'
+		WHEN grouping(dept_code) = 1 AND grouping(job_code) = 1 THEN '총 합계'
+		ELSE '그룹별 합계'
+	END AS 구분
+	FROM EMPLOYEE
+	GROUP BY cube(DEPT_CODE,JOB_CODE)
+	ORDER BY 1;
+
+SELECT emp_name, dept_code, salary,
+	lag(salary, 1,0) OVER(ORDER BY salary) 이전값,
+	-- 2번째 매개인자 : 몇행이전인지 나타냄. 1 이전행, 2 전전행
+	-- 3번쨰 매개인자 : 이전행이 없다면 출력할 값을 작성 (이전행 있다면 이전행값)
+	-- 1 : 위의 행값, 0 : 이전행이 없으면 0 처리함
+	lead(salary, 1,0) over(ORDER BY salary) 다음값,
+	-- 2번째 매개인자 : 몇행다음인지 나타냄. 1 다음행, 2 다다음행
+	-- 3번째 매개인자 : 다음행이 없다면 출력할 값을 작성 (다음행 있다면 다음행값)
+	-- 1 : 다음 행값, 0 : 다음행이 없으면 0 처리함
+	
+CREATE OR REPLACE VIEW v_emp_job(사번, 이름, 직급, 성별, 근무년수)
+AS SELECT emp_id, emp_name, job_name,
+decode(SUBSTR(emp_no,8,1),1,'남',2,'여'),
+EXTRACT(YEAR FROM sysdate) - EXTRACT(YEAR FROM hire_date)
+FROM employee
+JOIN job using(job_code);
+
+SELECT * FROM V_EMP_JOB;
+DROP VIEW V_EMP_JOB;
+
+DECLARE
+TYPE emp_id_table_type IS TABLE OF employee.emp_id%TYPE
+INDEX BY BINARY_integer;
+TYPE emp_name_table_type IS TABLE OF employee.emp_name%TYPE
+INDEX BY binary_integer;
+emp_id_table emp_id_table_type;
+emp_name_table emp_name_table_type;
+
+i binary_integer := 0;
+BEGIN
+	FOR k IN (SELECT emp_id, emp_name FROM EMPLOYEE) LOOP
+		i := i + 1;
+		emp_id_table(i) := k.emp_id;
+		emp_name_table(i) := k.emp_name;
+	END LOOP;
+	FOR j IN 1..i LOOP
+		dbms_output.put_line('emp_id : ' || emp_id_table(j)||'emp_name : '
+		|| emp_name_table(j));
+	END LOOP;
+END;
+
+DECLARE
+	emp_id employee.emp_id%TYPE;
+	emp_name employee.emp_name%TYPE;
+	salary employee.salary%TYPE;
+	bonus employee.bonus%TYPE;
+BEGIN
+	SELECT emp_id, emp_name, salary, nvl(bonus,0)
+	INTO emp_id, emp_name, salary, bonus
+	FROM EMPLOYEE
+	WHERE emp_id = '220';
+	dbms_output.put_line('사번 : ' || emp_id);
+	dbms_output.put_line('이름 : ' || emp_name);
+	dbms_output.put_line('급여 : ' || salary);
+
+	if(bonus = 0)
+		THEN dbms_output.put_line('보너스를 지급받지 않는 사원입니다.');
+	END IF;
+
+	dbms_output.put_line('보너스율 : ' || bonus*100 || '%');
+END;
+
+DECLARE
+	emp_id employee.emp_id%TYPE;
+	emp_name employee.emp_name%TYPE;
+	dept_title department.dept_title%TYPE;
+	national_code location.national_code%TYPE;
+	team varchar2(20);
+BEGIN
+	SELECT emp_id, emp_name, dept_title, national_code
+	INTO emp_id, emp_name, dept_title, national_code
+	FROM employee e, department d, location l
+	WHERE e.DEPT_CODE = d.DEPT_ID
+	AND d.LOCATION_ID = l.local_code
+	AND emp_id = '202';
+
+	if(national_code = 'KO') THEN team := '국내팀';
+	ELSE team := '해외팀';
+	END IF;
+	
+	dbms_output.put_line('사번 : ' || emp_id);
+	dbms_output.put_line('이름 : ' || emp_name);
+	dbms_output.put_line('부서 : ' || dept_title);
+	dbms_output.put_line('소속 : ' || team);
+
+END;
+
+DECLARE
+	score int;
+	grade varchar2(2);
+BEGIN
+	score := '90';
+	IF score >= 90 THEN grade := 'A';
+	ELSIF score >= 80 THEN grade := 'B';
+	ELSIF score >= 70 THEN grade := 'C';
+	ELSe grade := 'F';
+	END IF;
+
+	dbms_output.put_line('당신의 점수는 '||score||'점이고, 학점은
+	' || grade || '학점입니다.');
+END;
+
+DECLARE
+n NUMBER := 1;
+BEGIN
+	LOOP
+		dbms_output.put_line(N);
+	n := n+1;
+	IF n > 5 THEN EXIT;
+	END IF;
+	END LOOP;
+END;
+
+BEGIN 
+	FOR n IN 1..5 LOOP
+		dbms_output.put_line(N);
+	END LOOP;
+END;
+
+BEGIN
+	FOR n IN reverse 1..5 LOOP
+		dbms_output.put_line(N);
+	END LOOP;
+END;
+
+DECLARE
+ n NUMBER := 1;
+ BEGIN
+ 	WHILE n <= 5 LOOP
+	 	dbms_output.put_line(N);
+	 	n := n+1;
+ 	END LOOP;
+ END;
+ 
+DECLARE
+dup_empno EXCEPTION;
+pragma exception_init(dup_empno,-00001);
+BEGIN
+	UPDATE EMPLOYEE
+	SET emp_id = '200'
+	WHERE emp_id = 200;
+EXCEPTION
+	WHEN dup_empno
+	THEN dbms_output.put_line('이미 존재하는 사번입니다.');
+END;
+SELECT * FROM EMPLOYEE e ;
+
+CREATE OR REPLACE PROCEDURE employee_arg_test(
+		arg_emp_id IN employee.EMP_ID%TYPE,
+    	arg_emp_name OUT employee.EMP_NAME%TYPE,
+		arg_salary OUT employee.SALARY%TYPE,
+		arg_bonus OUT employee.BONUS%TYPE
+		)
+IS 
+BEGIN 
+	SELECT emp_name, salary, bonus
+	INTO arg_emp_name, arg_salary, arg_bonus
+	FROM employee
+	WHERE emp_id = arg_emp_id;
+
+	dbms_output.put_line('emp_id : ' || arg_emp_id);
+	dbms_output.put_line('emp_name : '|| arg_emp_name);
+	dbms_output.put_line('salary : ' || arg_salary);
+    dbms_output.put_line('bonus : ' || arg_bonus);
+END;
+
+CREATE OR REPLACE PROCEDURE call_employee_arg_test(
+	c_emp_id IN employee.EMP_ID%TYPE)
+	
+	AS
+	v_emp_name employee.EMP_NAME%TYPE;
+	v_salary employee.SALARY%TYPE;
+	v_bonus employee.BONUS%TYPE;
+BEGIN 
+	employee_arg_test(c_emp_id, v_emp_name, v_salary, v_bonus);
+	
+	dbms_output.put_line('사번은 : '|| c_emp_id);
+	dbms_output.put_line('이름은 : '|| v_emp_name);
+	dbms_output.put_line('월급은 : '|| v_salary);
+	dbms_output.put_line('보너스는 : '|| v_bonus * 100 ||'%');
+END;
+CALL CALL_EMPLOYEE_ARG_TEST(:C_EMP_ID); 
